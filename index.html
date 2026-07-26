@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Табель QR</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #eee;
+            margin: 0;
+        }
+
+        #qrcode {
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+        }
+
+        #timer {
+            text-align: center;
+            font-family: monospace;
+            margin-top: 10px;
+            font-size: 1.2em;
+            color: #555;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body>
+
+    <div>
+        <div id="qrcode"></div>
+        <div id="timer">Оновлення...</div>
+    </div>
+
+    <script>
+        let secretKey = localStorage.getItem('SECRET_KEY');
+        const UPDATE_INTERVAL_MS = 60000;
+
+        const timerDiv = document.getElementById("timer");
+        const qrDiv = document.getElementById("qrcode");
+
+        const qrCode = new QRCode(qrDiv, {
+            width: 300, height: 300,
+            correctLevel: QRCode.CorrectLevel.L
+        });
+        let clickCount = 0;
+        let clickTimer = null;
+
+        timerDiv.addEventListener('click', () => {
+            clickCount++;
+
+            
+            if (clickTimer) clearTimeout(clickTimer);
+
+            if (clickCount >= 5) {
+                clickCount = 0; 
+
+                
+                const newKey = prompt("Введіть секретний ключ для генерації QR:");
+
+                if (newKey && newKey.trim() !== "") {
+                    secretKey = newKey.trim();
+                    localStorage.setItem('SECRET_KEY', secretKey);
+                    updateQR(); 
+                }
+            } else {
+                clickTimer = setTimeout(() => {
+                    clickCount = 0;
+                }, 1000);
+            }
+        });
+        async function generateHash(text) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 10);
+        }
+        async function updateQR() {
+           
+            if (!secretKey) {
+                qrCode.clear(); 
+                timerDiv.innerText = "ПОМИЛКА! Ключ відсутній.";
+                timerDiv.style.color = "red";
+                timerDiv.style.fontWeight = "bold";
+                timerDiv.style.cursor = "pointer"; 
+                return; 
+            }
+
+            const currentMinute = Math.floor(Date.now() / UPDATE_INTERVAL_MS);
+            const signature = await generateHash(secretKey + currentMinute);
+            const qrData = `${currentMinute}|${signature}`;
+
+            qrCode.clear();
+            qrCode.makeCode(qrData);
+
+
+            timerDiv.innerText = `Код оновлено: ${new Date().toLocaleTimeString()}`;
+            timerDiv.style.color = "#555";
+            timerDiv.style.fontWeight = "normal";
+            timerDiv.style.cursor = "default";
+        }
+
+
+        updateQR();
+        setInterval(updateQR, UPDATE_INTERVAL_MS);
+    </script>
+</body>
+
+</html>
