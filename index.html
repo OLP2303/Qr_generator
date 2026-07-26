@@ -95,8 +95,8 @@
 
             const currentMinute = Math.floor(Date.now() / UPDATE_INTERVAL_MS);
             const signature = await generateHash(secretKey + currentMinute);
-            const qrData = `${currentMinute}|${signature}`;
-
+            const qrData = `48.9086996/24.7184289|${signature}`;
+            console.log(Date.now())
             qrCode.clear();
             qrCode.makeCode(qrData);
 
